@@ -1,6 +1,13 @@
 #include <immintrin.h>
 #include <stdio.h>
 #include <stdalign.h>
+// gcc -O2 -std=c11 -mavx2 -o nonmaxsup nonmaxsup.c
+
+static __inline__ unsigned long long rdtsc(void) {
+  unsigned hi, lo;
+  __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
+  return ( (unsigned long long)lo)|( ((unsigned long long)hi)<<32 );
+}
 
 void process_rows_avx2(const float *row0, const float *row1, const float *row2, float *out) {
     // Load 8 floats per row
@@ -40,7 +47,16 @@ int main() {
     float row2[8] = {0,9,2,9,2,9,2,9};
     float out[3] = {0};
 
+    unsigned long long st;
+    unsigned long long et;
+    unsigned long long sum = 0;
+
+    st = rdtsc();
     process_rows_avx2(row0, row1, row2, out);
+    et = rdtsc();
+    sum += (et-st);
+
+    printf("RDTSC Base Cycles Taken for INT_MUL: %llu\n\r",sum);
 
     for (int i = 0; i < 2; ++i)
         printf("out[%d] = %f\n", i, out[i]);
