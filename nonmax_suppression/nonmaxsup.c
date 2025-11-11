@@ -37,13 +37,13 @@ void process_rows_avx2(const float *row0, const float *row1, const float *row2, 
     __m256 r15 = _mm256_loadu_ps(row1 + 42);
 
     r0 = _mm256_max_ps(r0, r1);
-    r1 = _mm256_max_ps(r2, r3);
-    r2 = _mm256_max_ps(r4, r5);
-    r3 = _mm256_max_ps(r6, r7);
-    r4 = _mm256_max_ps(r8, r9);
-    r5 = _mm256_max_ps(r10, r11);
-    r6 = _mm256_max_ps(r12, r13);
-    r7 = _mm256_max_ps(r14, r15);
+    r2 = _mm256_max_ps(r2, r3);
+    r4 = _mm256_max_ps(r4, r5);
+    r6 = _mm256_max_ps(r6, r7);
+    r8 = _mm256_max_ps(r8, r9);
+    r10 = _mm256_max_ps(r10, r11);
+    r12 = _mm256_max_ps(r12, r13);
+    r14 = _mm256_max_ps(r14, r15);
 
     // load next row, vmax again
     r1 = _mm256_loadu_ps(row2);
