@@ -193,11 +193,20 @@ int main() {
     int w, h;
     float **gray_img = load_jpg_as_grayscale_f32("chessboard.jpg", &h, &w);
 
+    unsigned long long st;
+    unsigned long long et;
+    unsigned long long sum = 0;
+
     unsigned char **corners = malloc(h * sizeof(unsigned char*));
     for (int i = 0; i < h; i++)
         corners[i] = calloc(w, 1);
 
+    st = rdtsc();
     harris_corner_detector(gray_img, corners, h, w);
+    et = rdtsc();
+    sum += (et-st);
+
+    printf("RDTSC Base Cycles Taken for HARRIS CORNER: %llu\n\r",sum);
     
     unsigned char *outbuf = malloc(h * w);
     for (int y = 0; y < h; y++)
