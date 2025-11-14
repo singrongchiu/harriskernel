@@ -7,10 +7,14 @@
 #include "stb_image.h"
 #include "stb_image_write.h"
 
+#include "nonmaxsup.h"
+
 #define K 0.04   // Harris detector constant
-#define THRESHOLD 1e4   // Corner response threshold
+// #define THRESHOLD 1e4   // Corner response threshold
 
 // gcc -O2 -std=c11 -mavx2 -o highlevel highlevel.c -lm
+// NEW: linked with nonmaxsup:
+// gcc -O2 -std=c11 -mavx2 -o highlevel highlevel.c nonmaxsup.c -lm
 
 float** alloc_matrix(int h, int w) {
     float **m = malloc(h * sizeof(float*));
@@ -109,22 +113,22 @@ void harris_response(float **Ix, float **Iy, float **R, int h, int w) {
     free_matrix(Ixy, h);
 }
 
-void nonmax(float **R, unsigned char **corners, int h, int w) {
-    for (int y = 1; y < h - 1; y++) {
-        for (int x = 1; x < w - 1; x++) {
-            float v = R[y][x];
-            if (v < THRESHOLD) continue;
+// void nonmax(float **R, unsigned char **corners, int h, int w) {
+//     for (int y = 1; y < h - 1; y++) {
+//         for (int x = 1; x < w - 1; x++) {
+//             float v = R[y][x];
+//             if (v < THRESHOLD) continue;
 
-            int is_max = 1;
-            for (int j = -1; j <= 1; j++)
-                for (int i = -1; i <= 1; i++)
-                    if (R[y + j][x + i] > v)
-                        is_max = 0;
+//             int is_max = 1;
+//             for (int j = -1; j <= 1; j++)
+//                 for (int i = -1; i <= 1; i++)
+//                     if (R[y + j][x + i] > v)
+//                         is_max = 0;
 
-            corners[y][x] = is_max ? 255 : 0;
-        }
-    }
-}
+//             corners[y][x] = is_max ? 255 : 0;
+//         }
+//     }
+// }
 
 
 void harris_corner_detector(float **image, unsigned char **out,
@@ -136,7 +140,7 @@ void harris_corner_detector(float **image, unsigned char **out,
 
     sobel(image, Ix, Iy, h, w);
     harris_response(Ix, Iy, R, h, w);
-    nonmax(R, out, h, w);
+    process_array_avx2(R, out, h, w);
 
     free_matrix(Ix, h);
     free_matrix(Iy, h);
@@ -162,7 +166,7 @@ float **load_jpg_as_grayscale_f32(const char *filename, int *h, int *w) {
 
     float **img = malloc((height + 2) * sizeof(float*));
     for (int y = 0; y < height + 2; y++)
-        img[y] = malloc((width + 42) * sizeof(float));
+        img[y] = malloc((width + 48) * sizeof(float));
 
     // convert to grayscale
     for (int y = 0; y < height; y++) {
@@ -173,11 +177,11 @@ float **load_jpg_as_grayscale_f32(const char *filename, int *h, int *w) {
             unsigned char B = data[idx + 2];
             img[y][x] = rgb_to_gray(R, G, B);
         }
-        for (int x = 0; x < 42; x++)
+        for (int x = 0; x < 44; x++)
             img[y][width + x] = 0.0f; // my custom padding
     }
     for (int y = 0; y < 2; y++) {
-        for (int x = 0; x < width + 42; x++)
+        for (int x = 0; x < width + 44; x++)
             img[height + y][x] = 0.0f; // padding rows at bottom
     }
 
