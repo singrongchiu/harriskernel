@@ -8,7 +8,7 @@
 #include "stb_image_write.h"
 
 #define K 0.04   // Harris detector constant
-#define THRESHOLD 1e3   // Corner response threshold
+#define THRESHOLD 1e4   // Corner response threshold
 
 // gcc -O2 -std=c11 -mavx2 -o highlevel highlevel.c -lm
 
@@ -190,35 +190,19 @@ int main() {
         corners[i] = calloc(w, 1);
 
     harris_corner_detector(gray_img, corners, h, w);
+    
+    unsigned char *outbuf = malloc(h * w);
+    for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++)
+            outbuf[y * w + x] = corners[y][x];
 
-    // start with gray
-    unsigned char *outbuf = malloc(h*w*3);
-    for (int y=0;y<h;y++) {
-        for (int x=0;x<w;x++) {
-            int idx = (y*w + x)*3;
-            unsigned char gray = (unsigned char)gray_img[y][x];
-            outbuf[idx+0] = gray; // R
-            outbuf[idx+1] = gray; // G
-            outbuf[idx+2] = gray; // B
-        }
-    }
+    // Write to JPEG (quality 95)
+    stbi_write_jpg("corners_1e4.jpg", w, h, 1, outbuf, 95);
 
-    // Overlay corners in red
-    for (int y=0;y<h;y++) {
-        for (int x=0;x<w;x++) {
-            if (corners[y][x] > 0) {
-                int idx = (y*w + x)*3;
-                outbuf[idx+0] = 255; // Red
-                outbuf[idx+1] = 0;   // Green
-                outbuf[idx+2] = 0;   // Blue
-            }
-        }
-    }
+    printf("Done. Saved corners.jpg\n");
 
-    stbi_write_jpg("corners_red.jpg",w,h,3,outbuf,95);
-    printf("Saved corners_red.jpg\n");
-
-    for (int i=0;i<h;i++) {
+    // Free memory
+    for (int i = 0; i < h; i++) {
         free(gray_img[i]);
         free(corners[i]);
     }
