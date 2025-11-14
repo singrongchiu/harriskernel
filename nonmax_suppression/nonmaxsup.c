@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdalign.h>
 // gcc -O2 -std=c11 -mavx2 -o nonmaxsup nonmaxsup.c
+// objdump -s -d -f --source ./nonmaxsup > nonmaxsup.S
 
 static __inline__ unsigned long long rdtsc(void) {
   unsigned hi, lo;
@@ -115,6 +116,12 @@ void process_rows_avx2(const float *row0, const float *row1, const float *row2, 
         for (int j = 0; j < 2; ++j) {
             out[i * 2 + j] = tmp[i][j * 3];
         }
+    }
+}
+
+void process_array_avx2(const float *input, float *output, int length, int width) {
+    for (int i = 0; i < length; i += 48) {
+        process_rows_avx2(input + i, input + i + 16, input + i + 32, output + (i / 3));
     }
 }
 
