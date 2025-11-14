@@ -143,12 +143,11 @@ void harris_corner_detector(float **image, unsigned char **out,
     free_matrix(R, h);
 }
 
-// Converts RGB to grayscale using luminance formula
+// luminance formula
 unsigned char rgb_to_gray(unsigned char r, unsigned char g, unsigned char b) {
     return (unsigned char)(0.299*r + 0.587*g + 0.114*b);
 }
 
-// Load JPG → convert to grayscale float matrix
 float **load_jpg_as_grayscale_f32(const char *filename, int *h, int *w) {
     int width, height, channels;
 
@@ -161,12 +160,11 @@ float **load_jpg_as_grayscale_f32(const char *filename, int *h, int *w) {
     *w = width;
     *h = height;
 
-    // Allocate 2D float image
-    float **img = malloc(height * sizeof(float*));
-    for (int y = 0; y < height; y++)
-        img[y] = malloc(width * sizeof(float));
+    float **img = malloc((height + 2) * sizeof(float*));
+    for (int y = 0; y < height + 2; y++)
+        img[y] = malloc((width + 42) * sizeof(float));
 
-    // Convert each pixel to grayscale
+    // convert to grayscale
     for (int y = 0; y < height; y++) {
         for (int x = 0; x < width; x++) {
             int idx = (y * width + x) * 3;
@@ -175,6 +173,12 @@ float **load_jpg_as_grayscale_f32(const char *filename, int *h, int *w) {
             unsigned char B = data[idx + 2];
             img[y][x] = rgb_to_gray(R, G, B);
         }
+        for (int x = 0; x < 42; x++)
+            img[y][width + x] = 0.0f; // my custom padding
+    }
+    for (int y = 0; y < 2; y++) {
+        for (int x = 0; x < width + 42; x++)
+            img[height + y][x] = 0.0f; // padding rows at bottom
     }
 
     stbi_image_free(data);
