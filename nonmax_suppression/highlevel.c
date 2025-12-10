@@ -58,6 +58,62 @@ void free_matrix(float **m, int h) {
 //     }
 // }
 
+// void sobel_avx2_fma(float **img, float **Ix, float **Iy, int h, int w)
+// {
+//     // broadcast coefficients
+//     const __m256 k_gx_m1 = _mm256_set1_ps(-1.0f);
+//     // const __m256 k_gx_0  = _mm256_set1_ps( 0.0f);
+//     const __m256 k_gx_p1 = _mm256_set1_ps( 1.0f);
+
+//     const __m256 k_gx_m2 = _mm256_set1_ps(-2.0f);
+//     const __m256 k_gx_p2 = _mm256_set1_ps( 2.0f);
+
+//     // Broadcast Sobel coefficients for gy
+//     const __m256 k_gy_m1 = _mm256_set1_ps(-1.0f);
+//     const __m256 k_gy_m2 = _mm256_set1_ps(-2.0f);
+//     // const __m256 k_gy_0  = _mm256_set1_ps( 0.0f);
+//     const __m256 k_gy_p1 = _mm256_set1_ps( 1.0f);
+//     const __m256 k_gy_p2 = _mm256_set1_ps( 2.0f);
+
+//     for (int y = 1; y < h - 1; y++)
+//     {
+//         for (int x = 1; x < w - 8; x += 8)
+//         {
+//             // Load rows around (y, x)
+//             __m256 r0_l = _mm256_loadu_ps(&img[y-1][x-1]);
+//             __m256 r0_m = _mm256_loadu_ps(&img[y-1][x  ]);
+//             __m256 r0_r = _mm256_loadu_ps(&img[y-1][x+1]);
+
+//             __m256 r1_l = _mm256_loadu_ps(&img[y  ][x-1]);
+//             __m256 r1_m = _mm256_loadu_ps(&img[y  ][x  ]);
+//             __m256 r1_r = _mm256_loadu_ps(&img[y  ][x+1]);
+
+//             __m256 r2_l = _mm256_loadu_ps(&img[y+1][x-1]);
+//             __m256 r2_m = _mm256_loadu_ps(&img[y+1][x  ]);
+//             __m256 r2_r = _mm256_loadu_ps(&img[y+1][x+1]);
+
+//             // top row gx
+//             __m256 gx = _mm256_fmadd_ps(r0_r, k_gx_p1, _mm256_mul_ps(r0_l, k_gx_m1));
+            
+//             gx = _mm256_fmadd_ps(r1_r, k_gx_p2, _mm256_fmadd_ps(r1_l, k_gx_m2, gx));
+            
+//             gx = _mm256_fmadd_ps(r2_r, k_gx_p1,
+//                                  _mm256_fmadd_ps(r2_l, k_gx_m1, gx));
+            
+//             // top row gy
+//             __m256 gy = _mm256_fmadd_ps(r0_r, k_gy_m1,
+//                         _mm256_fmadd_ps(r0_m, k_gy_m2,
+//                                         _mm256_mul_ps(r0_l, k_gy_m1)));
+            
+//             gy = _mm256_fmadd_ps(r2_r, k_gy_p1, _mm256_fmadd_ps(r2_m, k_gy_p2,
+//                                  _mm256_fmadd_ps(r2_l, k_gy_p1, gy)));
+            
+//             _mm256_storeu_ps(&Ix[y][x], gx);
+//             _mm256_storeu_ps(&Iy[y][x], gy);
+//         }
+//     }
+// }
+
 void sobel_avx_simple(float **img, float **Ix, float **Iy, int h, int w)
 {
     // Only 4 registers for coefficients
