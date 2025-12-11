@@ -11,7 +11,7 @@
 #include "nonmaxsup.h"
 
 #define K 0.04   // Harris detector constant
-// #define THRESHOLD 1e4   // Corner response threshold
+// #define THRESHOLD 1e4   // Corner response threshold // moved to nonmaxsup.h
 
 // gcc -O2 -std=c11 -mavx2 -o highlevel highlevel.c -lm
 // NEW: linked with nonmaxsup:
@@ -30,7 +30,10 @@ void free_matrix(float **m, int h) {
     free(m);
 }
 
-
+/*
+Sobel Filter
+Plain C implementation
+*/
 // void sobel(float **img, float **Ix, float **Iy, int h, int w) {
 //     int gx[3][3] = {
 //         {-1, 0, 1},
@@ -54,62 +57,6 @@ void free_matrix(float **m, int h) {
 //                 }
 //             Ix[y][x] = sx;
 //             Iy[y][x] = sy;
-//         }
-//     }
-// }
-
-// void sobel_avx2_fma(float **img, float **Ix, float **Iy, int h, int w)
-// {
-//     // broadcast coefficients
-//     const __m256 k_gx_m1 = _mm256_set1_ps(-1.0f);
-//     // const __m256 k_gx_0  = _mm256_set1_ps( 0.0f);
-//     const __m256 k_gx_p1 = _mm256_set1_ps( 1.0f);
-
-//     const __m256 k_gx_m2 = _mm256_set1_ps(-2.0f);
-//     const __m256 k_gx_p2 = _mm256_set1_ps( 2.0f);
-
-//     // Broadcast Sobel coefficients for gy
-//     const __m256 k_gy_m1 = _mm256_set1_ps(-1.0f);
-//     const __m256 k_gy_m2 = _mm256_set1_ps(-2.0f);
-//     // const __m256 k_gy_0  = _mm256_set1_ps( 0.0f);
-//     const __m256 k_gy_p1 = _mm256_set1_ps( 1.0f);
-//     const __m256 k_gy_p2 = _mm256_set1_ps( 2.0f);
-
-//     for (int y = 1; y < h - 1; y++)
-//     {
-//         for (int x = 1; x < w - 8; x += 8)
-//         {
-//             // Load rows around (y, x)
-//             __m256 r0_l = _mm256_loadu_ps(&img[y-1][x-1]);
-//             __m256 r0_m = _mm256_loadu_ps(&img[y-1][x  ]);
-//             __m256 r0_r = _mm256_loadu_ps(&img[y-1][x+1]);
-
-//             __m256 r1_l = _mm256_loadu_ps(&img[y  ][x-1]);
-//             __m256 r1_m = _mm256_loadu_ps(&img[y  ][x  ]);
-//             __m256 r1_r = _mm256_loadu_ps(&img[y  ][x+1]);
-
-//             __m256 r2_l = _mm256_loadu_ps(&img[y+1][x-1]);
-//             __m256 r2_m = _mm256_loadu_ps(&img[y+1][x  ]);
-//             __m256 r2_r = _mm256_loadu_ps(&img[y+1][x+1]);
-
-//             // top row gx
-//             __m256 gx = _mm256_fmadd_ps(r0_r, k_gx_p1, _mm256_mul_ps(r0_l, k_gx_m1));
-            
-//             gx = _mm256_fmadd_ps(r1_r, k_gx_p2, _mm256_fmadd_ps(r1_l, k_gx_m2, gx));
-            
-//             gx = _mm256_fmadd_ps(r2_r, k_gx_p1,
-//                                  _mm256_fmadd_ps(r2_l, k_gx_m1, gx));
-            
-//             // top row gy
-//             __m256 gy = _mm256_fmadd_ps(r0_r, k_gy_m1,
-//                         _mm256_fmadd_ps(r0_m, k_gy_m2,
-//                                         _mm256_mul_ps(r0_l, k_gy_m1)));
-            
-//             gy = _mm256_fmadd_ps(r2_r, k_gy_p1, _mm256_fmadd_ps(r2_m, k_gy_p2,
-//                                  _mm256_fmadd_ps(r2_l, k_gy_p1, gy)));
-            
-//             _mm256_storeu_ps(&Ix[y][x], gx);
-//             _mm256_storeu_ps(&Iy[y][x], gy);
 //         }
 //     }
 // }
@@ -215,7 +162,108 @@ void sobel_avx_simple(float **img, float **Ix, float **Iy, int h, int w)
     }
 }
 
+void sobel_avx_simple(float **img, float **Ix, float **Iy, int h, int w) {
+    const __m256 k_neg1 = _mm256_set1_ps(-1.0f);
+    const __m256 k_pos1 = _mm256_set1_ps( 1.0f);
+    const __m256 k_neg2 = _mm256_set1_ps(-2.0f);
+    const __m256 k_pos2 = _mm256_set1_ps( 2.0f);
 
+    // process 6x3 pixels every iteration
+    // __m256  gtop0 = _mm256_setzero_ps(), gtop1 = _mm256_setzero_ps(),
+    //         gtop2 = _mm256_setzero_ps(), gmid0 = _mm256_setzero_ps(),
+    //         gmid1 = _mm256_setzero_ps(), gmid2 = _mm256_setzero_ps(),
+    //         gbot0 = _mm256_setzero_ps(), gbot1 = _mm256_setzero_ps(),
+    //         gbot2 = _mm256_setzero_ps();
+
+    // __m256  gtop0_neg1 = _mm256_setzero_ps(), gtop0_pos1 = _mm256_setzero_ps(),
+    //         gtop0_pos2 = _mm256_setzero_ps(), gmid0_neg2 = _mm256_setzero_ps(),
+    //         gmid0_pos2 = _mm256_setzero_ps(), gbot0_neg1 = _mm256_setzero_ps(),
+    //         gbot0_neg2 = _mm256_setzero_ps(), gbot0_pos1 = _mm256_setzero_ps();
+    
+    // __m256  gtop1_neg1 = _mm256_setzero_ps(), gtop1_pos1 = _mm256_setzero_ps(),
+    //         gtop1_pos2 = _mm256_setzero_ps(), gmid1_neg2 = _mm256_setzero_ps(),
+    //         gmid1_pos2 = _mm256_setzero_ps(), gbot1_neg1 = _mm256_setzero_ps(),
+    //         gbot1_neg2 = _mm256_setzero_ps(), gbot1_pos1 = _mm256_setzero_ps();
+    
+    // __m256  gtop2_neg1 = _mm256_setzero_ps(), gtop2_pos1 = _mm256_setzero_ps(),
+    //         gtop2_pos2 = _mm256_setzero_ps(), gmid2_neg2 = _mm256_setzero_ps(),
+    //         gmid2_pos2 = _mm256_setzero_ps(), gbot2_neg1 = _mm256_setzero_ps(),
+    //         gbot2_neg2 = _mm256_setzero_ps(), gbot2_pos1 = _mm256_setzero_ps();
+    
+    for (int y = 1; y < (h - 1); y++) {
+        for (int x = 1; x < (w - 1); x += 18) {
+            float *row0 = img[y-1];
+            float *row1 = img[y];
+            float *row2 = img[y+1];
+
+            __m256 gtop0 = _mm256_loadu_ps(row0 + x + 0*6);
+            __m256 gmid0 = _mm256_loadu_ps(row1 + x + 0*6);
+            __m256 gbot0 = _mm256_loadu_ps(row2 + x + 0*6);
+
+            __m256 gtop1 = _mm256_loadu_ps(row0 + x + 1*6);
+            __m256 gmid1 = _mm256_loadu_ps(row1 + x + 1*6);
+            __m256 gbot1 = _mm256_loadu_ps(row2 + x + 1*6);
+
+            __m256 gtop2 = _mm256_loadu_ps(row0 + x + 2*6);
+            __m256 gmid2 = _mm256_loadu_ps(row1 + x + 2*6);
+            __m256 gbot2 = _mm256_loadu_ps(row2 + x + 2*6);
+
+            __m256 gtop0_neg1 = _mm256_mul_ps(gtop0, k_neg1);
+            __m256 gtop0_pos1 = _mm256_mul_ps(gtop0, k_pos1);
+            __m256 gtop0_pos2 = _mm256_mul_ps(gtop0, k_pos2);
+            __m256 gmid0_neg2 = _mm256_mul_ps(gmid0, k_neg2);
+            __m256 gmid0_pos2 = _mm256_mul_ps(gmid0, k_pos2);
+            __m256 gbot0_neg1 = _mm256_mul_ps(gbot0, k_neg1);
+            __m256 gbot0_neg2 = _mm256_mul_ps(gbot0, k_neg2);
+            __m256 gbot0_pos1 = _mm256_mul_ps(gbot0, k_pos1);
+
+            __m256 gtop1_neg1 = _mm256_mul_ps(gtop1, k_neg1);
+            __m256 gtop1_pos1 = _mm256_mul_ps(gtop1, k_pos1);
+            __m256 gtop1_pos2 = _mm256_mul_ps(gtop1, k_pos2);
+            __m256 gmid1_neg2 = _mm256_mul_ps(gmid1, k_neg2);
+            __m256 gmid1_pos2 = _mm256_mul_ps(gmid1, k_pos2);
+            __m256 gbot1_neg1 = _mm256_mul_ps(gbot1, k_neg1);
+            __m256 gbot1_neg2 = _mm256_mul_ps(gbot1, k_neg2);
+            __m256 gbot1_pos1 = _mm256_mul_ps(gbot1, k_pos1);
+
+            __m256 gtop2_neg1 = _mm256_mul_ps(gtop2, k_neg1);
+            __m256 gtop2_pos1 = _mm256_mul_ps(gtop2, k_pos1);
+            __m256 gtop2_pos2 = _mm256_mul_ps(gtop2, k_pos2);
+            __m256 gmid2_neg2 = _mm256_mul_ps(gmid2, k_neg2);
+            __m256 gmid2_pos2 = _mm256_mul_ps(gmid2, k_pos2);
+            __m256 gbot2_neg1 = _mm256_mul_ps(gbot2, k_neg1);
+            __m256 gbot2_neg2 = _mm256_mul_ps(gbot2, k_neg2);
+            __m256 gbot2_pos1 = _mm256_mul_ps(gbot2, k_pos1);
+            
+            __m256i idx_left2 = _mm256_set_epi32(6,7,0,1,2,3,4,5);
+            __m256i idx_left1 = _mm256_set_epi32(7,0,1,2,3,4,5,6);
+
+            // __m256 rotated = _mm256_permutevar8x32_ps(v, idx);
+
+            __m256 gtop0_pos1_left2 
+            
+            __m256 gtop0_neg1_left2 = _mm256_permutevar8x32_ps(gtop0_neg1, idx_left2);
+
+            // gx
+            __m256 gx0 = _mm256_add_ps(gtop0_neg1, gmid0_neg2)
+            __m256 gx0 = _mm256_add_ps(gx0, gbot0_neg1);
+
+            __m256 gx1; // repeated
+            __m256 gx2; 
+
+            // gy
+            __m256 gy0;
+            __m256 gy1;
+            __m256 gy2;
+        }
+    }
+
+}
+
+/*
+gaussian3
+Plain C implementation
+*/
 // void gaussian3(float **src, float **dst, int h, int w) {
 //     float g[3][3] = {
 //         {1, 2, 1},
@@ -232,59 +280,6 @@ void sobel_avx_simple(float **img, float **Ix, float **Iy, int h, int w)
 //                     sum += src[y + j - 1][x + i - 1] * g[j][i];
 
 //             dst[y][x] = sum / norm;
-//         }
-//     }
-// }
-
-// void gaussian3(float **src, float **dst, int h, int w) {
-//     // 3x3 Gaussian kernel with sigma=1, normalized
-//     const float k[3][3] = {
-//         {1.f/16, 2.f/16, 1.f/16},
-//         {2.f/16, 4.f/16, 2.f/16},
-//         {1.f/16, 2.f/16, 1.f/16}
-//     };
-
-//     // Broadcast kernel values to AVX registers
-//     __m256 k00 = _mm256_set1_ps(k[0][0]);
-//     __m256 k01 = _mm256_set1_ps(k[0][1]);
-//     __m256 k02 = _mm256_set1_ps(k[0][2]);
-//     __m256 k10 = _mm256_set1_ps(k[1][0]);
-//     __m256 k11 = _mm256_set1_ps(k[1][1]);
-//     __m256 k12 = _mm256_set1_ps(k[1][2]);
-//     __m256 k20 = _mm256_set1_ps(k[2][0]);
-//     __m256 k21 = _mm256_set1_ps(k[2][1]);
-//     __m256 k22 = _mm256_set1_ps(k[2][2]);
-
-//     for (int y = 1; y < h - 1; y++) {
-//         for (int x = 1; x < w - 8; x += 8) { // process 8 pixels at a time
-//             __m256 r0_l = _mm256_loadu_ps(&src[y-1][x-1]);
-//             __m256 r0_m = _mm256_loadu_ps(&src[y-1][x]);
-//             __m256 r0_r = _mm256_loadu_ps(&src[y-1][x+1]);
-
-//             __m256 r1_l = _mm256_loadu_ps(&src[y][x-1]);
-//             __m256 r1_m = _mm256_loadu_ps(&src[y][x]);
-//             __m256 r1_r = _mm256_loadu_ps(&src[y][x+1]);
-
-//             __m256 r2_l = _mm256_loadu_ps(&src[y+1][x-1]);
-//             __m256 r2_m = _mm256_loadu_ps(&src[y+1][x]);
-//             __m256 r2_r = _mm256_loadu_ps(&src[y+1][x+1]);
-
-//             // Apply Gaussian kernel using fused multiply-add
-//             __m256 sum = _mm256_setzero_ps();
-
-//             sum = _mm256_fmadd_ps(r0_l, k00, sum);
-//             sum = _mm256_fmadd_ps(r0_m, k01, sum);
-//             sum = _mm256_fmadd_ps(r0_r, k02, sum);
-
-//             sum = _mm256_fmadd_ps(r1_l, k10, sum);
-//             sum = _mm256_fmadd_ps(r1_m, k11, sum);
-//             sum = _mm256_fmadd_ps(r1_r, k12, sum);
-
-//             sum = _mm256_fmadd_ps(r2_l, k20, sum);
-//             sum = _mm256_fmadd_ps(r2_m, k21, sum);
-//             sum = _mm256_fmadd_ps(r2_r, k22, sum);
-
-//             _mm256_storeu_ps(&dst[y][x], sum);
 //         }
 //     }
 // }
