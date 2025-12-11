@@ -191,7 +191,7 @@ void sobel_avx_simple(float **img, float **Ix, float **Iy, int h, int w) {
     //         gbot2_neg2 = _mm256_setzero_ps(), gbot2_pos1 = _mm256_setzero_ps();
     
     for (int y = 1; y < (h - 1); y++) {
-        for (int x = 1; x < (w - 1); x += 6) {
+        for (int x = 1; x <= (w - 6); x += 6) {
             float *row0 = img[y-1];
             float *row1 = img[y];
             float *row2 = img[y+1];
