@@ -153,30 +153,63 @@ void process_rows_avx2(const float *row0, const float *row1, const float *row2, 
     }
 }
 
-void process_array_avx2(float * const *input, unsigned char ** output, int height, int width) {
-    // process_rows_avx2 processes 6 * 7 = 42 elements per row
+// void process_array_avx2(float * const *input, unsigned char ** output, int height, int width) {
+//     // process_rows_avx2 processes 6 * 7 = 42 elements per row
     
-    int col_blocks = (width / 42) + 1; 
+//     int col_blocks = (width / 42) + 1; 
 
-    // initialize output 
+//     // initialize output 
+//     float avx_output[16] = {0};
+
+//     for (int i = 0; i < height - 2; i+=3) {
+//         for (int j = 0; j < col_blocks; ++j) {
+//             process_rows_avx2(input[i] + 42*j, input[i + 1] + 42*j, input[i + 2] + 42*j, avx_output);
+
+//             for (int k = 0; k < 14; ++k) {
+//                 int out_col = j * 42 + k * 3 + 1;
+//                 if (out_col < width) {
+//                     output[i + 1][out_col] = (avx_output[k] > THRESHOLD) ? 255 : 0;
+//                 }
+//             }
+//         }
+//         printf("height processed: %d\r", i);
+
+//     }
+
+
+// }
+
+void process_array_avx2(float * const *input, unsigned char ** output,
+                        int height, int width) {
+    int col_blocks = (width / 42) + 1;
+
     float avx_output[16] = {0};
 
-    for (int i = 0; i < height - 2; i+=3) {
+    for (int i = 0; i < height - 2; i += 3) {
         for (int j = 0; j < col_blocks; ++j) {
-            process_rows_avx2(input[i] + 42*j, input[i + 1] + 42*j, input[i + 2] + 42*j, avx_output);
+
+            process_rows_avx2(input[i]     + 42*j,
+                              input[i + 1] + 42*j,
+                              input[i + 2] + 42*j,
+                              avx_output);
 
             for (int k = 0; k < 14; ++k) {
                 int out_col = j * 42 + k * 3 + 1;
                 if (out_col < width) {
-                    output[i + 1][out_col] = (avx_output[k] > THRESHOLD) ? 255 : 0;
+                    float local_max  = avx_output[k];          // max over 3×3
+                    float center_val = input[i + 1][out_col];  // center pixel
+
+                    // if (center_val == local_max && local_max > THRESHOLD) {
+                    if (center_val >= local_max - 1e-6f && local_max > THRESHOLD) {
+                        output[i + 1][out_col] = 255;
+                    } else {
+                        output[i + 1][out_col] = 0;
+                    }
                 }
             }
         }
         printf("height processed: %d\r", i);
-
     }
-
-
 }
 
 // int main() {
