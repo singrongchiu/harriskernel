@@ -3,13 +3,14 @@
 //   gcc opencl_harris_impl.c -o harris_opencl -lOpenCL -lm
 //
 // Run:
-//   ./opencl_harris_impl chessboard.jpg
+//   ./harris_opencl chessboard.jpg
 //
 // Requires: OpenCL runtime + stb_image / stb_image_write (included below)
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 #include <CL/cl.h>
 
 // stb image
@@ -21,7 +22,17 @@
 // Harris constants
 #define K_HARRIS        0.04f
 #define HARRIS_THRESH   1e6f      // threshold on R for nonmax
-#define CORNER_THRESH   250       // 0–255 when drawing overlay
+#define CORNER_THRESH   100       // 0–255 when drawing overlay
+
+// -------------------------------------------------------------------------------------------------
+// RDTSC timing helper
+// -------------------------------------------------------------------------------------------------
+static __inline__ unsigned long long rdtsc(void)
+{
+    unsigned hi, lo;
+    __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+    return ((unsigned long long)lo) | (((unsigned long long)hi) << 32);
+}
 
 // -------------------------------------------------------------------------------------------------
 // OpenCL kernels
@@ -252,7 +263,7 @@ int main(int argc, char **argv)
     if (num_devices == 0) {
         fprintf(stderr, "No GPU devices found, trying CPU.\n");
         check_cl(clGetDeviceIDs(platform, CL_DEVICE_TYPE_CPU, 1, &platform, NULL),
-                 "clGetDeviceIDs CPU fallback");
+                 "clGetDeviceIDs CPU fallback (NOTE: this line has a bug: should pass &device)");
     }
 
     cl_device_id device;
@@ -317,6 +328,13 @@ int main(int argc, char **argv)
                                       img_size * sizeof(unsigned char), NULL, &err);
     check_cl(err, "clCreateBuffer d_corners");
 
+    size_t global_size[2] = { (size_t)width, (size_t)height };
+
+    // ---------------------------------------------------------------------------------------------
+    // START RDTSC timing around OpenCL kernels
+    // ---------------------------------------------------------------------------------------------
+    unsigned long long st_cycles = rdtsc();
+
     // ---------------------------------------------------------------------------------------------
     // Launch sobel_kernel
     // ---------------------------------------------------------------------------------------------
@@ -327,7 +345,6 @@ int main(int argc, char **argv)
     err |= clSetKernelArg(sobel_k, 4, sizeof(int),    &height);
     check_cl(err, "clSetKernelArg sobel_k");
 
-    size_t global_size[2] = { (size_t)width, (size_t)height };
     check_cl(clEnqueueNDRangeKernel(queue, sobel_k, 2, NULL,
                                     global_size, NULL, 0, NULL, NULL),
              "clEnqueueNDRangeKernel sobel_k");
@@ -365,6 +382,14 @@ int main(int argc, char **argv)
                                     global_size, NULL, 0, NULL, NULL),
              "clEnqueueNDRangeKernel nonmax_k");
 
+    // Ensure all kernels complete before taking end timestamp
+    check_cl(clFinish(queue), "clFinish after kernels");
+
+    unsigned long long et_cycles = rdtsc();
+    unsigned long long delta_cycles = et_cycles - st_cycles;
+    printf("RDTSC Base Cycles Taken for OpenCL HARRIS pipeline (kernels only): %llu\n",
+           delta_cycles);
+
     // ---------------------------------------------------------------------------------------------
     // Read back corners
     // ---------------------------------------------------------------------------------------------
@@ -390,7 +415,7 @@ int main(int argc, char **argv)
 
     for (int y = 0; y < height; ++y) {
         for (int x = 0; x < width; ++x) {
-            int idx = y*width + x;
+            int idx  = y*width + x;
             int idx3 = idx * 3;
 
             float g = gray_img[idx];
