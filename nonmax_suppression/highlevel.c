@@ -275,6 +275,56 @@ void sobel_avx_simple(float **img, float **Ix, float **Iy, int h, int w) {
 
 }
 
+// void sobel_avx_simple(float **img, float **Ix, float **Iy, int h, int w) {
+//     const __m256 k1  = _mm256_set1_ps(1.0f);
+//     const __m256 k2  = _mm256_set1_ps(2.0f);
+//     const __m256 k_1 = _mm256_set1_ps(-1.0f);
+//     const __m256 k_2 = _mm256_set1_ps(-2.0f);
+
+//     for (int y = 1; y < h - 1; y++) {
+//         for (int x = 1; x <= w - 8; x += 8) {  // process 8 pixels per iteration
+//             float *r0 = img[y-1];
+//             float *r1 = img[y];
+//             float *r2 = img[y+1];
+
+//             // Load 3x3 neighborhood pixels for 8-wide
+//             __m256 top_left = _mm256_loadu_ps(r0 + x - 1);
+//             __m256 top_center = _mm256_loadu_ps(r0 + x);
+//             __m256 top_right = _mm256_loadu_ps(r0 + x + 1);
+
+//             __m256 mid_left = _mm256_loadu_ps(r1 + x - 1);
+//             __m256 mid_center = _mm256_loadu_ps(r1 + x);
+//             __m256 mid_right = _mm256_loadu_ps(r1 + x + 1);
+
+//             __m256 bot_left = _mm256_loadu_ps(r2 + x - 1);
+//             __m256 bot_center = _mm256_loadu_ps(r2 + x);
+//             __m256 bot_right = _mm256_loadu_ps(r2 + x + 1);
+
+//             // Gx = (-1 0 1; -2 0 2; -1 0 1)
+//             __m256 gx = _mm256_add_ps(
+//                             _mm256_add_ps(_mm256_mul_ps(k_1, top_left),
+//                                           _mm256_mul_ps(k_1, bot_left)),
+//                             _mm256_add_ps(_mm256_mul_ps(k1, top_right),
+//                                           _mm256_mul_ps(k1, bot_right)));
+//             gx = _mm256_add_ps(gx,
+//                                _mm256_add_ps(_mm256_mul_ps(k_2, mid_left),
+//                                              _mm256_mul_ps(k2, mid_right)));
+
+//             // Gy = (-1 -2 -1; 0 0 0; 1 2 1)
+//             __m256 gy = _mm256_add_ps(
+//                             _mm256_add_ps(_mm256_mul_ps(k_1, top_left),
+//                                           _mm256_mul_ps(k_2, top_center)),
+//                             _mm256_add_ps(_mm256_mul_ps(k_1, top_right),
+//                                           _mm256_add_ps(_mm256_mul_ps(k1, bot_left),
+//                                                         _mm256_add_ps(_mm256_mul_ps(k2, bot_center),
+//                                                                       _mm256_mul_ps(k1, bot_right)))));
+
+//             _mm256_storeu_ps(&Ix[y][x], gx);
+//             _mm256_storeu_ps(&Iy[y][x], gy);
+//         }
+//     }
+// }
+
 /*
 gaussian3
 Plain C implementation
