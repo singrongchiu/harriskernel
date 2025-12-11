@@ -11,6 +11,8 @@
 #include "nonmaxsup.h"
 
 #define K 0.04   // Harris detector constant
+// #define HARRIS_K 0.04f
+
 // #define THRESHOLD 1e4   // Corner response threshold // moved to nonmaxsup.h
 
 // gcc -O2 -std=c11 -mavx2 -o highlevel highlevel.c -lm
@@ -61,269 +63,220 @@ Plain C implementation
 //     }
 // }
 
-// void sobel_avx_simple(float **img, float **Ix, float **Iy, int h, int w)
-// {
-//     // Only 4 registers for coefficients
-//     const __m256 k_m1 = _mm256_set1_ps(-1.0f);
-//     const __m256 k_p1 = _mm256_set1_ps( 1.0f);
-//     const __m256 k_m2 = _mm256_set1_ps(-2.0f);
-//     const __m256 k_p2 = _mm256_set1_ps( 2.0f);
+void sobel_avx_simple(float **img, float **Ix, float **Iy, int h, int w)
+{
+    // Only 4 registers for coefficients
+    const __m256 k_m1 = _mm256_set1_ps(-1.0f);
+    const __m256 k_p1 = _mm256_set1_ps( 1.0f);
+    const __m256 k_m2 = _mm256_set1_ps(-2.0f);
+    const __m256 k_p2 = _mm256_set1_ps( 2.0f);
 
-//     for (int y = 1; y < h - 1; y++) {
-//         for (int x = 1; x <= w - 48; x += 48) { // 6 blocks of 8 pixels
-//             // initialize accumulators
-//             __m256 gx0 = _mm256_setzero_ps(), gx1 = _mm256_setzero_ps(),
-//                    gx2 = _mm256_setzero_ps(), gx3 = _mm256_setzero_ps(),
-//                    gx4 = _mm256_setzero_ps(), gx5 = _mm256_setzero_ps();
+    for (int y = 1; y < h - 1; y++) {
+        for (int x = 1; x <= w - 48; x += 48) { // 6 blocks of 8 pixels
+            // initialize accumulators
+            __m256 gx0 = _mm256_setzero_ps(), gx1 = _mm256_setzero_ps(),
+                   gx2 = _mm256_setzero_ps(), gx3 = _mm256_setzero_ps(),
+                   gx4 = _mm256_setzero_ps(), gx5 = _mm256_setzero_ps();
 
-//             __m256 gy0 = _mm256_setzero_ps(), gy1 = _mm256_setzero_ps(),
-//                    gy2 = _mm256_setzero_ps(), gy3 = _mm256_setzero_ps(),
-//                    gy4 = _mm256_setzero_ps(), gy5 = _mm256_setzero_ps();
+            __m256 gy0 = _mm256_setzero_ps(), gy1 = _mm256_setzero_ps(),
+                   gy2 = _mm256_setzero_ps(), gy3 = _mm256_setzero_ps(),
+                   gy4 = _mm256_setzero_ps(), gy5 = _mm256_setzero_ps();
 
-//             for (int j = -1; j <= 1; j++) {
-//                 float *row = img[y + j];
+            for (int j = -1; j <= 1; j++) {
+                float *row = img[y + j];
 
-//                 __m256 r0_l0 = _mm256_loadu_ps(row + x-1 + 0*8);
-//                 __m256 r0_m0 = _mm256_loadu_ps(row + x   + 0*8);
-//                 __m256 r0_r0 = _mm256_loadu_ps(row + x+1 + 0*8);
-//                 __m256 r0_l1 = _mm256_loadu_ps(row + x-1 + 1*8);
-//                 __m256 r0_m1 = _mm256_loadu_ps(row + x   + 1*8);
-//                 __m256 r0_r1 = _mm256_loadu_ps(row + x+1 + 1*8);
-//                 __m256 r0_l2 = _mm256_loadu_ps(row + x-1 + 2*8);
-//                 __m256 r0_m2 = _mm256_loadu_ps(row + x   + 2*8);
-//                 __m256 r0_r2 = _mm256_loadu_ps(row + x+1 + 2*8);
-//                 __m256 r0_l3 = _mm256_loadu_ps(row + x-1 + 3*8);
-//                 __m256 r0_m3 = _mm256_loadu_ps(row + x   + 3*8);
-//                 __m256 r0_r3 = _mm256_loadu_ps(row + x+1 + 3*8);
-//                 __m256 r0_l4 = _mm256_loadu_ps(row + x-1 + 4*8);
-//                 __m256 r0_m4 = _mm256_loadu_ps(row + x   + 4*8);
-//                 __m256 r0_r4 = _mm256_loadu_ps(row + x+1 + 4*8);
-//                 __m256 r0_l5 = _mm256_loadu_ps(row + x-1 + 5*8);
-//                 __m256 r0_m5 = _mm256_loadu_ps(row + x   + 5*8);
-//                 __m256 r0_r5 = _mm256_loadu_ps(row + x+1 + 5*8);
+                __m256 r0_l0 = _mm256_loadu_ps(row + x-1 + 0*8);
+                __m256 r0_m0 = _mm256_loadu_ps(row + x   + 0*8);
+                __m256 r0_r0 = _mm256_loadu_ps(row + x+1 + 0*8);
+                __m256 r0_l1 = _mm256_loadu_ps(row + x-1 + 1*8);
+                __m256 r0_m1 = _mm256_loadu_ps(row + x   + 1*8);
+                __m256 r0_r1 = _mm256_loadu_ps(row + x+1 + 1*8);
+                __m256 r0_l2 = _mm256_loadu_ps(row + x-1 + 2*8);
+                __m256 r0_m2 = _mm256_loadu_ps(row + x   + 2*8);
+                __m256 r0_r2 = _mm256_loadu_ps(row + x+1 + 2*8);
+                __m256 r0_l3 = _mm256_loadu_ps(row + x-1 + 3*8);
+                __m256 r0_m3 = _mm256_loadu_ps(row + x   + 3*8);
+                __m256 r0_r3 = _mm256_loadu_ps(row + x+1 + 3*8);
+                __m256 r0_l4 = _mm256_loadu_ps(row + x-1 + 4*8);
+                __m256 r0_m4 = _mm256_loadu_ps(row + x   + 4*8);
+                __m256 r0_r4 = _mm256_loadu_ps(row + x+1 + 4*8);
+                __m256 r0_l5 = _mm256_loadu_ps(row + x-1 + 5*8);
+                __m256 r0_m5 = _mm256_loadu_ps(row + x   + 5*8);
+                __m256 r0_r5 = _mm256_loadu_ps(row + x+1 + 5*8);
 
-//                 // gx
-//                 if (j == -1) {
-//                     gx0 = _mm256_fmadd_ps(r0_l0, k_m1, _mm256_fmadd_ps(r0_r0, k_p1, gx0));
-//                     gx1 = _mm256_fmadd_ps(r0_l1, k_m1, _mm256_fmadd_ps(r0_r1, k_p1, gx1));
-//                     gx2 = _mm256_fmadd_ps(r0_l2, k_m1, _mm256_fmadd_ps(r0_r2, k_p1, gx2));
-//                     gx3 = _mm256_fmadd_ps(r0_l3, k_m1, _mm256_fmadd_ps(r0_r3, k_p1, gx3));
-//                     gx4 = _mm256_fmadd_ps(r0_l4, k_m1, _mm256_fmadd_ps(r0_r4, k_p1, gx4));
-//                     gx5 = _mm256_fmadd_ps(r0_l5, k_m1, _mm256_fmadd_ps(r0_r5, k_p1, gx5));
+                // gx
+                if (j == -1) {
+                    gx0 = _mm256_fmadd_ps(r0_l0, k_m1, _mm256_fmadd_ps(r0_r0, k_p1, gx0));
+                    gx1 = _mm256_fmadd_ps(r0_l1, k_m1, _mm256_fmadd_ps(r0_r1, k_p1, gx1));
+                    gx2 = _mm256_fmadd_ps(r0_l2, k_m1, _mm256_fmadd_ps(r0_r2, k_p1, gx2));
+                    gx3 = _mm256_fmadd_ps(r0_l3, k_m1, _mm256_fmadd_ps(r0_r3, k_p1, gx3));
+                    gx4 = _mm256_fmadd_ps(r0_l4, k_m1, _mm256_fmadd_ps(r0_r4, k_p1, gx4));
+                    gx5 = _mm256_fmadd_ps(r0_l5, k_m1, _mm256_fmadd_ps(r0_r5, k_p1, gx5));
 
-//                     gy0 = _mm256_fmadd_ps(r0_l0, k_m1, _mm256_fmadd_ps(r0_m0, k_m2, _mm256_fmadd_ps(r0_r0, k_m1, gy0)));
-//                     gy1 = _mm256_fmadd_ps(r0_l1, k_m1, _mm256_fmadd_ps(r0_m1, k_m2, _mm256_fmadd_ps(r0_r1, k_m1, gy1)));
-//                     gy2 = _mm256_fmadd_ps(r0_l2, k_m1, _mm256_fmadd_ps(r0_m2, k_m2, _mm256_fmadd_ps(r0_r2, k_m1, gy2)));
-//                     gy3 = _mm256_fmadd_ps(r0_l3, k_m1, _mm256_fmadd_ps(r0_m3, k_m2, _mm256_fmadd_ps(r0_r3, k_m1, gy3)));
-//                     gy4 = _mm256_fmadd_ps(r0_l4, k_m1, _mm256_fmadd_ps(r0_m4, k_m2, _mm256_fmadd_ps(r0_r4, k_m1, gy4)));
-//                     gy5 = _mm256_fmadd_ps(r0_l5, k_m1, _mm256_fmadd_ps(r0_m5, k_m2, _mm256_fmadd_ps(r0_r5, k_m1, gy5)));
-//                 }
-//                 else if (j == 0) {
-//                     gx0 = _mm256_fmadd_ps(r0_l0, k_m2, _mm256_fmadd_ps(r0_r0, k_p2, gx0));
-//                     gx1 = _mm256_fmadd_ps(r0_l1, k_m2, _mm256_fmadd_ps(r0_r1, k_p2, gx1));
-//                     gx2 = _mm256_fmadd_ps(r0_l2, k_m2, _mm256_fmadd_ps(r0_r2, k_p2, gx2));
-//                     gx3 = _mm256_fmadd_ps(r0_l3, k_m2, _mm256_fmadd_ps(r0_r3, k_p2, gx3));
-//                     gx4 = _mm256_fmadd_ps(r0_l4, k_m2, _mm256_fmadd_ps(r0_r4, k_p2, gx4));
-//                     gx5 = _mm256_fmadd_ps(r0_l5, k_m2, _mm256_fmadd_ps(r0_r5, k_p2, gx5));
-//                     // gy middle row is 0
-//                 }
-//                 else { // j == 1
-//                     gx0 = _mm256_fmadd_ps(r0_l0, k_m1, _mm256_fmadd_ps(r0_r0, k_p1, gx0));
-//                     gx1 = _mm256_fmadd_ps(r0_l1, k_m1, _mm256_fmadd_ps(r0_r1, k_p1, gx1));
-//                     gx2 = _mm256_fmadd_ps(r0_l2, k_m1, _mm256_fmadd_ps(r0_r2, k_p1, gx2));
-//                     gx3 = _mm256_fmadd_ps(r0_l3, k_m1, _mm256_fmadd_ps(r0_r3, k_p1, gx3));
-//                     gx4 = _mm256_fmadd_ps(r0_l4, k_m1, _mm256_fmadd_ps(r0_r4, k_p1, gx4));
-//                     gx5 = _mm256_fmadd_ps(r0_l5, k_m1, _mm256_fmadd_ps(r0_r5, k_p1, gx5));
+                    gy0 = _mm256_fmadd_ps(r0_l0, k_m1, _mm256_fmadd_ps(r0_m0, k_m2, _mm256_fmadd_ps(r0_r0, k_m1, gy0)));
+                    gy1 = _mm256_fmadd_ps(r0_l1, k_m1, _mm256_fmadd_ps(r0_m1, k_m2, _mm256_fmadd_ps(r0_r1, k_m1, gy1)));
+                    gy2 = _mm256_fmadd_ps(r0_l2, k_m1, _mm256_fmadd_ps(r0_m2, k_m2, _mm256_fmadd_ps(r0_r2, k_m1, gy2)));
+                    gy3 = _mm256_fmadd_ps(r0_l3, k_m1, _mm256_fmadd_ps(r0_m3, k_m2, _mm256_fmadd_ps(r0_r3, k_m1, gy3)));
+                    gy4 = _mm256_fmadd_ps(r0_l4, k_m1, _mm256_fmadd_ps(r0_m4, k_m2, _mm256_fmadd_ps(r0_r4, k_m1, gy4)));
+                    gy5 = _mm256_fmadd_ps(r0_l5, k_m1, _mm256_fmadd_ps(r0_m5, k_m2, _mm256_fmadd_ps(r0_r5, k_m1, gy5)));
+                }
+                else if (j == 0) {
+                    gx0 = _mm256_fmadd_ps(r0_l0, k_m2, _mm256_fmadd_ps(r0_r0, k_p2, gx0));
+                    gx1 = _mm256_fmadd_ps(r0_l1, k_m2, _mm256_fmadd_ps(r0_r1, k_p2, gx1));
+                    gx2 = _mm256_fmadd_ps(r0_l2, k_m2, _mm256_fmadd_ps(r0_r2, k_p2, gx2));
+                    gx3 = _mm256_fmadd_ps(r0_l3, k_m2, _mm256_fmadd_ps(r0_r3, k_p2, gx3));
+                    gx4 = _mm256_fmadd_ps(r0_l4, k_m2, _mm256_fmadd_ps(r0_r4, k_p2, gx4));
+                    gx5 = _mm256_fmadd_ps(r0_l5, k_m2, _mm256_fmadd_ps(r0_r5, k_p2, gx5));
+                    // gy middle row is 0
+                }
+                else { // j == 1
+                    gx0 = _mm256_fmadd_ps(r0_l0, k_m1, _mm256_fmadd_ps(r0_r0, k_p1, gx0));
+                    gx1 = _mm256_fmadd_ps(r0_l1, k_m1, _mm256_fmadd_ps(r0_r1, k_p1, gx1));
+                    gx2 = _mm256_fmadd_ps(r0_l2, k_m1, _mm256_fmadd_ps(r0_r2, k_p1, gx2));
+                    gx3 = _mm256_fmadd_ps(r0_l3, k_m1, _mm256_fmadd_ps(r0_r3, k_p1, gx3));
+                    gx4 = _mm256_fmadd_ps(r0_l4, k_m1, _mm256_fmadd_ps(r0_r4, k_p1, gx4));
+                    gx5 = _mm256_fmadd_ps(r0_l5, k_m1, _mm256_fmadd_ps(r0_r5, k_p1, gx5));
 
-//                     gy0 = _mm256_fmadd_ps(r0_l0, k_p1, _mm256_fmadd_ps(r0_m0, k_p2, _mm256_fmadd_ps(r0_r0, k_p1, gy0)));
-//                     gy1 = _mm256_fmadd_ps(r0_l1, k_p1, _mm256_fmadd_ps(r0_m1, k_p2, _mm256_fmadd_ps(r0_r1, k_p1, gy1)));
-//                     gy2 = _mm256_fmadd_ps(r0_l2, k_p1, _mm256_fmadd_ps(r0_m2, k_p2, _mm256_fmadd_ps(r0_r2, k_p1, gy2)));
-//                     gy3 = _mm256_fmadd_ps(r0_l3, k_p1, _mm256_fmadd_ps(r0_m3, k_p2, _mm256_fmadd_ps(r0_r3, k_p1, gy3)));
-//                     gy4 = _mm256_fmadd_ps(r0_l4, k_p1, _mm256_fmadd_ps(r0_m4, k_p2, _mm256_fmadd_ps(r0_r4, k_p1, gy4)));
-//                     gy5 = _mm256_fmadd_ps(r0_l5, k_p1, _mm256_fmadd_ps(r0_m5, k_p2, _mm256_fmadd_ps(r0_r5, k_p1, gy5)));
-//                 }
-//             }
+                    gy0 = _mm256_fmadd_ps(r0_l0, k_p1, _mm256_fmadd_ps(r0_m0, k_p2, _mm256_fmadd_ps(r0_r0, k_p1, gy0)));
+                    gy1 = _mm256_fmadd_ps(r0_l1, k_p1, _mm256_fmadd_ps(r0_m1, k_p2, _mm256_fmadd_ps(r0_r1, k_p1, gy1)));
+                    gy2 = _mm256_fmadd_ps(r0_l2, k_p1, _mm256_fmadd_ps(r0_m2, k_p2, _mm256_fmadd_ps(r0_r2, k_p1, gy2)));
+                    gy3 = _mm256_fmadd_ps(r0_l3, k_p1, _mm256_fmadd_ps(r0_m3, k_p2, _mm256_fmadd_ps(r0_r3, k_p1, gy3)));
+                    gy4 = _mm256_fmadd_ps(r0_l4, k_p1, _mm256_fmadd_ps(r0_m4, k_p2, _mm256_fmadd_ps(r0_r4, k_p1, gy4)));
+                    gy5 = _mm256_fmadd_ps(r0_l5, k_p1, _mm256_fmadd_ps(r0_m5, k_p2, _mm256_fmadd_ps(r0_r5, k_p1, gy5)));
+                }
+            }
 
-//             // Store results
-//             _mm256_storeu_ps(&Ix[y][x + 0*8], gx0);
-//             _mm256_storeu_ps(&Ix[y][x + 1*8], gx1);
-//             _mm256_storeu_ps(&Ix[y][x + 2*8], gx2);
-//             _mm256_storeu_ps(&Ix[y][x + 3*8], gx3);
-//             _mm256_storeu_ps(&Ix[y][x + 4*8], gx4);
-//             _mm256_storeu_ps(&Ix[y][x + 5*8], gx5);
-
-//             _mm256_storeu_ps(&Iy[y][x + 0*8], gy0);
-//             _mm256_storeu_ps(&Iy[y][x + 1*8], gy1);
-//             _mm256_storeu_ps(&Iy[y][x + 2*8], gy2);
-//             _mm256_storeu_ps(&Iy[y][x + 3*8], gy3);
-//             _mm256_storeu_ps(&Iy[y][x + 4*8], gy4);
-//             _mm256_storeu_ps(&Iy[y][x + 5*8], gy5);
-//         }
-//     }
-// }
-
-void sobel_avx_simple(float **img, float **Ix, float **Iy, int h, int w) {
-    const __m256 k_neg1 = _mm256_set1_ps(-1.0f);
-    const __m256 k_pos1 = _mm256_set1_ps( 1.0f);
-    const __m256 k_neg2 = _mm256_set1_ps(-2.0f);
-    const __m256 k_pos2 = _mm256_set1_ps( 2.0f);
-
-    // process 6x3 pixels every iteration
-    // __m256  gtop0 = _mm256_setzero_ps(), gtop1 = _mm256_setzero_ps(),
-    //         gtop2 = _mm256_setzero_ps(), gmid0 = _mm256_setzero_ps(),
-    //         gmid1 = _mm256_setzero_ps(), gmid2 = _mm256_setzero_ps(),
-    //         gbot0 = _mm256_setzero_ps(), gbot1 = _mm256_setzero_ps(),
-    //         gbot2 = _mm256_setzero_ps();
-
-    // __m256  gtop0_neg1 = _mm256_setzero_ps(), gtop0_pos1 = _mm256_setzero_ps(),
-    //         gtop0_pos2 = _mm256_setzero_ps(), gmid0_neg2 = _mm256_setzero_ps(),
-    //         gmid0_pos2 = _mm256_setzero_ps(), gbot0_neg1 = _mm256_setzero_ps(),
-    //         gbot0_neg2 = _mm256_setzero_ps(), gbot0_pos1 = _mm256_setzero_ps();
-    
-    // __m256  gtop1_neg1 = _mm256_setzero_ps(), gtop1_pos1 = _mm256_setzero_ps(),
-    //         gtop1_pos2 = _mm256_setzero_ps(), gmid1_neg2 = _mm256_setzero_ps(),
-    //         gmid1_pos2 = _mm256_setzero_ps(), gbot1_neg1 = _mm256_setzero_ps(),
-    //         gbot1_neg2 = _mm256_setzero_ps(), gbot1_pos1 = _mm256_setzero_ps();
-    
-    // __m256  gtop2_neg1 = _mm256_setzero_ps(), gtop2_pos1 = _mm256_setzero_ps(),
-    //         gtop2_pos2 = _mm256_setzero_ps(), gmid2_neg2 = _mm256_setzero_ps(),
-    //         gmid2_pos2 = _mm256_setzero_ps(), gbot2_neg1 = _mm256_setzero_ps(),
-    //         gbot2_neg2 = _mm256_setzero_ps(), gbot2_pos1 = _mm256_setzero_ps();
-    
-    for (int y = 1; y < (h - 1); y++) {
-        for (int x = 1; x <= (w - 6); x += 6) {
-            float *row0 = img[y-1];
-            float *row1 = img[y];
-            float *row2 = img[y+1];
-
-            __m256 gtop0 = _mm256_loadu_ps(row0 + x - 1 + 0*6);
-            __m256 gmid0 = _mm256_loadu_ps(row1 + x - 1 + 0*6);
-            __m256 gbot0 = _mm256_loadu_ps(row2 + x - 1 + 0*6);
-
-            // __m256 gtop1 = _mm256_loadu_ps(row0 + x + 1*6);
-            // __m256 gmid1 = _mm256_loadu_ps(row1 + x + 1*6);
-            // __m256 gbot1 = _mm256_loadu_ps(row2 + x + 1*6);
-
-            // __m256 gtop2 = _mm256_loadu_ps(row0 + x + 2*6);
-            // __m256 gmid2 = _mm256_loadu_ps(row1 + x + 2*6);
-            // __m256 gbot2 = _mm256_loadu_ps(row2 + x + 2*6);
-
-            __m256 gtop0_neg1 = _mm256_mul_ps(gtop0, k_neg1);
-            __m256 gtop0_pos1 = _mm256_mul_ps(gtop0, k_pos1);
-            __m256 gtop0_pos2 = _mm256_mul_ps(gtop0, k_pos2);
-            __m256 gmid0_neg2 = _mm256_mul_ps(gmid0, k_neg2);
-            __m256 gmid0_pos2 = _mm256_mul_ps(gmid0, k_pos2);
-            __m256 gbot0_neg1 = _mm256_mul_ps(gbot0, k_neg1);
-            __m256 gbot0_neg2 = _mm256_mul_ps(gbot0, k_neg2);
-            __m256 gbot0_pos1 = _mm256_mul_ps(gbot0, k_pos1);
-
-            // __m256 gtop1_neg1 = _mm256_mul_ps(gtop1, k_neg1);
-            // __m256 gtop1_pos1 = _mm256_mul_ps(gtop1, k_pos1);
-            // __m256 gtop1_pos2 = _mm256_mul_ps(gtop1, k_pos2);
-            // __m256 gmid1_neg2 = _mm256_mul_ps(gmid1, k_neg2);
-            // __m256 gmid1_pos2 = _mm256_mul_ps(gmid1, k_pos2);
-            // __m256 gbot1_neg1 = _mm256_mul_ps(gbot1, k_neg1);
-            // __m256 gbot1_neg2 = _mm256_mul_ps(gbot1, k_neg2);
-            // __m256 gbot1_pos1 = _mm256_mul_ps(gbot1, k_pos1);
-
-            // __m256 gtop2_neg1 = _mm256_mul_ps(gtop2, k_neg1);
-            // __m256 gtop2_pos1 = _mm256_mul_ps(gtop2, k_pos1);
-            // __m256 gtop2_pos2 = _mm256_mul_ps(gtop2, k_pos2);
-            // __m256 gmid2_neg2 = _mm256_mul_ps(gmid2, k_neg2);
-            // __m256 gmid2_pos2 = _mm256_mul_ps(gmid2, k_pos2);
-            // __m256 gbot2_neg1 = _mm256_mul_ps(gbot2, k_neg1);
-            // __m256 gbot2_neg2 = _mm256_mul_ps(gbot2, k_neg2);
-            // __m256 gbot2_pos1 = _mm256_mul_ps(gbot2, k_pos1);
-            
-            __m256i idx_left2 = _mm256_set_epi32(6,7,0,1,2,3,4,5);
-            __m256i idx_left1 = _mm256_set_epi32(7,0,1,2,3,4,5,6);
-
-            // __m256 rotated = _mm256_permutevar8x32_ps(v, idx);
-
-            __m256 gtop0_pos1_left2 = _mm256_permutevar8x32_ps(gtop0_pos1, idx_left2);
-            __m256 gmid0_pos2_left2 = _mm256_permutevar8x32_ps(gmid0_pos2, idx_left2);
-            __m256 gbot0_pos1_left2 = _mm256_permutevar8x32_ps(gbot0_pos1, idx_left2);
-            
-            __m256 gtop0_neg1_left2 = _mm256_permutevar8x32_ps(gtop0_neg1, idx_left2);
-            __m256 gtop0_pos2_left1 = _mm256_permutevar8x32_ps(gtop0_pos2, idx_left1);
-            __m256 gbot0_neg2_left1 = _mm256_permutevar8x32_ps(gbot0_neg2, idx_left1); 
-            __m256 gbot0_neg1_left2 = _mm256_permutevar8x32_ps(gbot0_neg1, idx_left2);
-
-            // gx
-            __m256 gx0_0 = _mm256_add_ps(gtop0_neg1, gmid0_neg2);
-            __m256 gx0_1 = _mm256_add_ps(gbot0_neg1, gtop0_pos1_left2);
-            __m256 gx0_2 = _mm256_add_ps(gmid0_pos2_left2, gbot0_pos1_left2);
-            __m256 gx0 = _mm256_add_ps(gx0_0, gx0_1);
-            gx0 = _mm256_add_ps(gx0, gx0_2);
-
-            // __m256 gx1; // repeated
-            // __m256 gx2; 
-
-            // gy
-            __m256 gy0_0 = _mm256_add_ps(gtop0_neg1, gbot0_neg1);
-            __m256 gy0_1 = _mm256_add_ps(gtop0_pos2_left1, gbot0_neg2_left1);
-            __m256 gy0_2 = _mm256_add_ps(gtop0_pos1_left2, gbot0_neg1_left2);
-            __m256 gy0 = _mm256_add_ps(gy0_0, gy0_1);
-            gy0 = _mm256_add_ps(gy0, gy0_2);
-
-            // __m256 gy1;
-            // __m256 gy2;
+            // Store results
             _mm256_storeu_ps(&Ix[y][x + 0*8], gx0);
+            _mm256_storeu_ps(&Ix[y][x + 1*8], gx1);
+            _mm256_storeu_ps(&Ix[y][x + 2*8], gx2);
+            _mm256_storeu_ps(&Ix[y][x + 3*8], gx3);
+            _mm256_storeu_ps(&Ix[y][x + 4*8], gx4);
+            _mm256_storeu_ps(&Ix[y][x + 5*8], gx5);
+
             _mm256_storeu_ps(&Iy[y][x + 0*8], gy0);
+            _mm256_storeu_ps(&Iy[y][x + 1*8], gy1);
+            _mm256_storeu_ps(&Iy[y][x + 2*8], gy2);
+            _mm256_storeu_ps(&Iy[y][x + 3*8], gy3);
+            _mm256_storeu_ps(&Iy[y][x + 4*8], gy4);
+            _mm256_storeu_ps(&Iy[y][x + 5*8], gy5);
         }
     }
-
 }
 
 // void sobel_avx_simple(float **img, float **Ix, float **Iy, int h, int w) {
-//     const __m256 k1  = _mm256_set1_ps(1.0f);
-//     const __m256 k2  = _mm256_set1_ps(2.0f);
-//     const __m256 k_1 = _mm256_set1_ps(-1.0f);
-//     const __m256 k_2 = _mm256_set1_ps(-2.0f);
+//     const __m256 k_neg1 = _mm256_set1_ps(-1.0f);
+//     const __m256 k_pos1 = _mm256_set1_ps( 1.0f);
+//     const __m256 k_neg2 = _mm256_set1_ps(-2.0f);
+//     const __m256 k_pos2 = _mm256_set1_ps( 2.0f);
 
-//     for (int y = 1; y < h - 1; y++) {
-//         for (int x = 1; x <= w - 8; x += 8) {  // process 8 pixels per iteration
-//             float *r0 = img[y-1];
-//             float *r1 = img[y];
-//             float *r2 = img[y+1];
+//     // process 6x3 pixels every iteration
+//     // __m256  gtop0 = _mm256_setzero_ps(), gtop1 = _mm256_setzero_ps(),
+//     //         gtop2 = _mm256_setzero_ps(), gmid0 = _mm256_setzero_ps(),
+//     //         gmid1 = _mm256_setzero_ps(), gmid2 = _mm256_setzero_ps(),
+//     //         gbot0 = _mm256_setzero_ps(), gbot1 = _mm256_setzero_ps(),
+//     //         gbot2 = _mm256_setzero_ps();
 
-//             // Load 3x3 neighborhood pixels for 8-wide
-//             __m256 top_left = _mm256_loadu_ps(r0 + x - 1);
-//             __m256 top_center = _mm256_loadu_ps(r0 + x);
-//             __m256 top_right = _mm256_loadu_ps(r0 + x + 1);
+//     // __m256  gtop0_neg1 = _mm256_setzero_ps(), gtop0_pos1 = _mm256_setzero_ps(),
+//     //         gtop0_pos2 = _mm256_setzero_ps(), gmid0_neg2 = _mm256_setzero_ps(),
+//     //         gmid0_pos2 = _mm256_setzero_ps(), gbot0_neg1 = _mm256_setzero_ps(),
+//     //         gbot0_neg2 = _mm256_setzero_ps(), gbot0_pos1 = _mm256_setzero_ps();
+    
+//     // __m256  gtop1_neg1 = _mm256_setzero_ps(), gtop1_pos1 = _mm256_setzero_ps(),
+//     //         gtop1_pos2 = _mm256_setzero_ps(), gmid1_neg2 = _mm256_setzero_ps(),
+//     //         gmid1_pos2 = _mm256_setzero_ps(), gbot1_neg1 = _mm256_setzero_ps(),
+//     //         gbot1_neg2 = _mm256_setzero_ps(), gbot1_pos1 = _mm256_setzero_ps();
+    
+//     // __m256  gtop2_neg1 = _mm256_setzero_ps(), gtop2_pos1 = _mm256_setzero_ps(),
+//     //         gtop2_pos2 = _mm256_setzero_ps(), gmid2_neg2 = _mm256_setzero_ps(),
+//     //         gmid2_pos2 = _mm256_setzero_ps(), gbot2_neg1 = _mm256_setzero_ps(),
+//     //         gbot2_neg2 = _mm256_setzero_ps(), gbot2_pos1 = _mm256_setzero_ps();
+    
+//     for (int y = 1; y < (h - 1); y++) {
+//         for (int x = 1; x <= (w - 6); x += 6) {
+//             float *row0 = img[y-1];
+//             float *row1 = img[y];
+//             float *row2 = img[y+1];
 
-//             __m256 mid_left = _mm256_loadu_ps(r1 + x - 1);
-//             __m256 mid_center = _mm256_loadu_ps(r1 + x);
-//             __m256 mid_right = _mm256_loadu_ps(r1 + x + 1);
+//             __m256 gtop0 = _mm256_loadu_ps(row0 + x - 1 + 0*6);
+//             __m256 gmid0 = _mm256_loadu_ps(row1 + x - 1 + 0*6);
+//             __m256 gbot0 = _mm256_loadu_ps(row2 + x - 1 + 0*6);
 
-//             __m256 bot_left = _mm256_loadu_ps(r2 + x - 1);
-//             __m256 bot_center = _mm256_loadu_ps(r2 + x);
-//             __m256 bot_right = _mm256_loadu_ps(r2 + x + 1);
+//             // __m256 gtop1 = _mm256_loadu_ps(row0 + x + 1*6);
+//             // __m256 gmid1 = _mm256_loadu_ps(row1 + x + 1*6);
+//             // __m256 gbot1 = _mm256_loadu_ps(row2 + x + 1*6);
 
-//             // Gx = (-1 0 1; -2 0 2; -1 0 1)
-//             __m256 gx = _mm256_add_ps(
-//                             _mm256_add_ps(_mm256_mul_ps(k_1, top_left),
-//                                           _mm256_mul_ps(k_1, bot_left)),
-//                             _mm256_add_ps(_mm256_mul_ps(k1, top_right),
-//                                           _mm256_mul_ps(k1, bot_right)));
-//             gx = _mm256_add_ps(gx,
-//                                _mm256_add_ps(_mm256_mul_ps(k_2, mid_left),
-//                                              _mm256_mul_ps(k2, mid_right)));
+//             // __m256 gtop2 = _mm256_loadu_ps(row0 + x + 2*6);
+//             // __m256 gmid2 = _mm256_loadu_ps(row1 + x + 2*6);
+//             // __m256 gbot2 = _mm256_loadu_ps(row2 + x + 2*6);
 
-//             // Gy = (-1 -2 -1; 0 0 0; 1 2 1)
-//             __m256 gy = _mm256_add_ps(
-//                             _mm256_add_ps(_mm256_mul_ps(k_1, top_left),
-//                                           _mm256_mul_ps(k_2, top_center)),
-//                             _mm256_add_ps(_mm256_mul_ps(k_1, top_right),
-//                                           _mm256_add_ps(_mm256_mul_ps(k1, bot_left),
-//                                                         _mm256_add_ps(_mm256_mul_ps(k2, bot_center),
-//                                                                       _mm256_mul_ps(k1, bot_right)))));
+//             __m256 gtop0_neg1 = _mm256_mul_ps(gtop0, k_neg1);
+//             __m256 gtop0_pos1 = _mm256_mul_ps(gtop0, k_pos1);
+//             __m256 gtop0_pos2 = _mm256_mul_ps(gtop0, k_pos2);
+//             __m256 gmid0_neg2 = _mm256_mul_ps(gmid0, k_neg2);
+//             __m256 gmid0_pos2 = _mm256_mul_ps(gmid0, k_pos2);
+//             __m256 gbot0_neg1 = _mm256_mul_ps(gbot0, k_neg1);
+//             __m256 gbot0_neg2 = _mm256_mul_ps(gbot0, k_neg2);
+//             __m256 gbot0_pos1 = _mm256_mul_ps(gbot0, k_pos1);
 
-//             _mm256_storeu_ps(&Ix[y][x], gx);
-//             _mm256_storeu_ps(&Iy[y][x], gy);
+//             // __m256 gtop1_neg1 = _mm256_mul_ps(gtop1, k_neg1);
+//             // __m256 gtop1_pos1 = _mm256_mul_ps(gtop1, k_pos1);
+//             // __m256 gtop1_pos2 = _mm256_mul_ps(gtop1, k_pos2);
+//             // __m256 gmid1_neg2 = _mm256_mul_ps(gmid1, k_neg2);
+//             // __m256 gmid1_pos2 = _mm256_mul_ps(gmid1, k_pos2);
+//             // __m256 gbot1_neg1 = _mm256_mul_ps(gbot1, k_neg1);
+//             // __m256 gbot1_neg2 = _mm256_mul_ps(gbot1, k_neg2);
+//             // __m256 gbot1_pos1 = _mm256_mul_ps(gbot1, k_pos1);
+
+//             // __m256 gtop2_neg1 = _mm256_mul_ps(gtop2, k_neg1);
+//             // __m256 gtop2_pos1 = _mm256_mul_ps(gtop2, k_pos1);
+//             // __m256 gtop2_pos2 = _mm256_mul_ps(gtop2, k_pos2);
+//             // __m256 gmid2_neg2 = _mm256_mul_ps(gmid2, k_neg2);
+//             // __m256 gmid2_pos2 = _mm256_mul_ps(gmid2, k_pos2);
+//             // __m256 gbot2_neg1 = _mm256_mul_ps(gbot2, k_neg1);
+//             // __m256 gbot2_neg2 = _mm256_mul_ps(gbot2, k_neg2);
+//             // __m256 gbot2_pos1 = _mm256_mul_ps(gbot2, k_pos1);
+            
+//             __m256i idx_left2 = _mm256_set_epi32(6,7,0,1,2,3,4,5);
+//             __m256i idx_left1 = _mm256_set_epi32(7,0,1,2,3,4,5,6);
+
+//             // __m256 rotated = _mm256_permutevar8x32_ps(v, idx);
+
+//             __m256 gtop0_pos1_left2 = _mm256_permutevar8x32_ps(gtop0_pos1, idx_left2);
+//             __m256 gmid0_pos2_left2 = _mm256_permutevar8x32_ps(gmid0_pos2, idx_left2);
+//             __m256 gbot0_pos1_left2 = _mm256_permutevar8x32_ps(gbot0_pos1, idx_left2);
+            
+//             __m256 gtop0_neg1_left2 = _mm256_permutevar8x32_ps(gtop0_neg1, idx_left2);
+//             __m256 gtop0_pos2_left1 = _mm256_permutevar8x32_ps(gtop0_pos2, idx_left1);
+//             __m256 gbot0_neg2_left1 = _mm256_permutevar8x32_ps(gbot0_neg2, idx_left1); 
+//             __m256 gbot0_neg1_left2 = _mm256_permutevar8x32_ps(gbot0_neg1, idx_left2);
+
+//             // gx
+//             __m256 gx0_0 = _mm256_add_ps(gtop0_neg1, gmid0_neg2);
+//             __m256 gx0_1 = _mm256_add_ps(gbot0_neg1, gtop0_pos1_left2);
+//             __m256 gx0_2 = _mm256_add_ps(gmid0_pos2_left2, gbot0_pos1_left2);
+//             __m256 gx0 = _mm256_add_ps(gx0_0, gx0_1);
+//             gx0 = _mm256_add_ps(gx0, gx0_2);
+
+//             // __m256 gx1; // repeated
+//             // __m256 gx2; 
+
+//             // gy
+//             __m256 gy0_0 = _mm256_add_ps(gtop0_neg1, gbot0_neg1);
+//             __m256 gy0_1 = _mm256_add_ps(gtop0_pos2_left1, gbot0_neg2_left1);
+//             __m256 gy0_2 = _mm256_add_ps(gtop0_pos1_left2, gbot0_neg1_left2);
+//             __m256 gy0 = _mm256_add_ps(gy0_0, gy0_1);
+//             gy0 = _mm256_add_ps(gy0, gy0_2);
+
+//             // __m256 gy1;
+//             // __m256 gy2;
+//             _mm256_storeu_ps(&Ix[y][x + 0*8], gx0);
+//             _mm256_storeu_ps(&Iy[y][x + 0*8], gy0);
 //         }
 //     }
+
 // }
+
 
 /*
 gaussian3
@@ -432,6 +385,88 @@ void gaussian3(float **src, float **dst, int h, int w) {
     }
 }
 
+void products_avx_rowptrs(
+    float **Ix, float **Iy,
+    float **Ix2, float **Iy2, float **Ixy,
+    int h, int w)
+{
+    const int vecWidth = 8;
+    int x, y;
+
+    for (y = 0; y < h; ++y) {
+        float *Ix_row  = Ix[y];
+        float *Iy_row  = Iy[y];
+        float *Ix2_row = Ix2[y];
+        float *Iy2_row = Iy2[y];
+        float *Ixy_row = Ixy[y];
+
+        int lim = (w / vecWidth) * vecWidth;
+        for (x = 0; x < lim; x += vecWidth) {
+            __m256 vIx  = _mm256_loadu_ps(Ix_row + x);
+            __m256 vIy  = _mm256_loadu_ps(Iy_row + x);
+
+            __m256 vIx2 = _mm256_mul_ps(vIx, vIx);    // Ix^2
+            __m256 vIy2 = _mm256_mul_ps(vIy, vIy);    // Iy^2
+            __m256 vIxy = _mm256_mul_ps(vIx, vIy);    // Ix * Iy
+
+            _mm256_storeu_ps(Ix2_row + x, vIx2);
+            _mm256_storeu_ps(Iy2_row + x, vIy2);
+            _mm256_storeu_ps(Ixy_row + x, vIxy);
+        }
+
+        // tail (scalar)
+        for (x = lim; x < w; ++x) {
+            float ix = Ix_row[x];
+            float iy = Iy_row[x];
+            Ix2_row[x] = ix * ix;
+            Iy2_row[x] = iy * iy;
+            Ixy_row[x] = ix * iy;
+        }
+    }
+}
+
+
+void response_calc_avx(float **Ix2, float **Ixy, float **Iy2, float **R, int h, int w) {
+    const __m256 k = _mm256_set1_ps(K);
+
+    for (int y = 1; y < h - 1; y++) {
+        for (int x = 1; x <= w - 8; x += 8) {  // process 8 pixels at a time
+            // load 8 floats from each matrix
+            __m256 a = _mm256_loadu_ps(&Ix2[y][x]);
+            __m256 b = _mm256_loadu_ps(&Ixy[y][x]);
+            __m256 c = _mm256_loadu_ps(&Iy2[y][x]);
+
+            // det = a*c - b*b
+            __m256 ac = _mm256_mul_ps(a, c);
+            __m256 bb = _mm256_mul_ps(b, b);
+            __m256 det = _mm256_sub_ps(ac, bb);
+
+            // trace = a + c
+            __m256 trace = _mm256_add_ps(a, c);
+
+            // trace^2
+            __m256 trace2 = _mm256_mul_ps(trace, trace);
+
+            // R = det - K * trace^2
+            __m256 Ktrace2 = _mm256_mul_ps(k, trace2);
+            __m256 Rvec = _mm256_sub_ps(det, Ktrace2);
+
+            // store result
+            _mm256_storeu_ps(&R[y][x], Rvec);
+        }
+
+        // handle remaining pixels if w is not multiple of 8
+        for (int x = (w - 1) / 8 * 8 + 1; x < w - 1; x++) {
+            float a = Ix2[y][x];
+            float b = Ixy[y][x];
+            float c = Iy2[y][x];
+            float det = a * c - b * b;
+            float trace = a + c;
+            R[y][x] = det - K * trace * trace;
+        }
+    }
+}
+
 void harris_response(float **Ix, float **Iy, float **R, int h, int w) {
     float **Ix2 = alloc_matrix(h, w);
     float **Iy2 = alloc_matrix(h, w);
@@ -444,6 +479,7 @@ void harris_response(float **Ix, float **Iy, float **R, int h, int w) {
             Iy2[y][x] = Iy[y][x] * Iy[y][x];
             Ixy[y][x] = Ix[y][x] * Iy[y][x];
         }
+    // products_avx_rowptrs(Ix, Iy, Ix2, Iy2, Ixy, h, w);
 
     // Smooth
     gaussian3(Ix2, Ix2, h, w);
@@ -462,6 +498,7 @@ void harris_response(float **Ix, float **Iy, float **R, int h, int w) {
             R[y][x] = det - K * trace * trace;
         }
     }
+    // response_calc_avx(Ix2, Ixy, Iy2, R, h, w);
 
     free_matrix(Ix2, h);
     free_matrix(Iy2, h);
@@ -493,9 +530,16 @@ void harris_corner_detector(float **image, unsigned char **out,
     float **Iy = alloc_matrix(h, w);
     float **R  = alloc_matrix(h, w);
 
+    unsigned long long pt1 = rdtsc();
     sobel_avx_simple(image, Ix, Iy, h, w);
+    unsigned long long pt2 = rdtsc();
     harris_response(Ix, Iy, R, h, w);
+    unsigned long long pt3 = rdtsc();
     process_array_avx2(R, out, h, w);
+    unsigned long long pt4 = rdtsc();
+    printf("RDTSC Base Cycles Taken for SORBEL: %llu\n\r",pt2-pt1);
+    printf("RDTSC Base Cycles Taken for HARRIS RESPONSE: %llu\n\r",pt3-pt2);
+    printf("RDTSC Base Cycles Taken for NONMAX: %llu\n\r",pt4-pt3);
 
     free_matrix(Ix, h);
     free_matrix(Iy, h);
